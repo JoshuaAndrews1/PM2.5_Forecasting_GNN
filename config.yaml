@@ -41,7 +41,7 @@ train:
 filepath:
   GPU-Server:
     knowair_fp: /data/pm25gnn/data/dataset_fire_wind_aligned.npy
-    results_dir: /data/pm25gnn/results
+    results_dir: results
 
 data:
   metero_var:
