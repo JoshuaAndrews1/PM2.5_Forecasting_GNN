@@ -1,4 +1,9 @@
 # PM2.5_Forecasting_GNN
+
+This fork includes corrections to training, evaluation, normalization, and graph
+transport. See [CORRECTIONS.md](CORRECTIONS.md) for setup, validation, metric
+definitions, and checkpoint compatibility. The upstream instructions below are
+retained as background; use the corrected setup instructions first.
 Simulating the Air Quality Impact of Prescribed Fires Using Graph Neural Network-Based PM2.5 Forecasts
 
 This repository includes the code used to train the PM2.5-GNN model from Wang et al. (2020) to predict the hourly PM2.5 in California, estimate the ambient PM2.5 pollution, and predict the PM2.5 during simulated prescribed burn events. For the simulated prescribed burns, two expimerents were performed, with the first applying the PM2.5-GNN model to determine the optimal month to conduct prescribed fires, and the second quantify the potential air quality trade-offs involved in conducting more prescribed fires outside the fire season. 
@@ -17,7 +22,7 @@ PyTorch 1.13.1
 ```
 
 ```bash
-pip install -r reqs.txt
+pip install -r req.txt
 ```
 
 ## Set-up and Run

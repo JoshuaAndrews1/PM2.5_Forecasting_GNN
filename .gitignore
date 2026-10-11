@@ -129,3 +129,10 @@ dmypy.json
 .pyre/
 *.swp
 .idea
+
+# Local experiments
+results/
+simulate_results/
+.venv*/
+config.local.yaml
+run_local.ps1
