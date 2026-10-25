@@ -1,0 +1,99 @@
+data:
+  metero_var:
+  - 100m_u_component_of_wind
+  - 100m_v_component_of_wind
+  - 2m_dewpoint_temperature
+  - 2m_temperature
+  - boundary_layer_height
+  - total_precipitation
+  - surface_pressure
+  - u_component_of_wind+950
+  - v_component_of_wind+950
+  - frp_25km_idw
+  - frp_50km_idw
+  - frp_100km_idw
+  - frp_500km_idw
+  - numfires
+  - interp_flag
+  - julian_date
+  - time_of_day
+dataset:
+  data_start:
+  - - 2017
+    - 1
+    - 1
+    - 1
+    - 0
+  - GMT
+  data_end:
+  - - 2021
+    - 12
+    - 31
+    - 16
+    - 0
+  - GMT
+  1:
+    test_end:
+    - - 2021
+      - 12
+      - 31
+    - GMT
+    test_start:
+    - - 2021
+      - 1
+      - 1
+    - GMT
+    train_end:
+    - - 2018
+      - 12
+      - 31
+    - GMT
+    train_start:
+    - - 2017
+      - 1
+      - 2
+    - GMT
+    val_end:
+    - - 2020
+      - 12
+      - 31
+    - GMT
+    val_start:
+    - - 2020
+      - 1
+      - 1
+    - GMT
+experiments:
+  dataset_num: 1
+  metero_use:
+  - 100m_u_component_of_wind
+  - 100m_v_component_of_wind
+  - 2m_dewpoint_temperature
+  - 2m_temperature
+  - boundary_layer_height
+  - total_precipitation
+  - surface_pressure
+  - u_component_of_wind+950
+  - v_component_of_wind+950
+  - frp_25km_idw
+  - frp_50km_idw
+  - frp_100km_idw
+  - frp_500km_idw
+  - numfires
+  - julian_date
+  - time_of_day
+  model: PM25_GNN
+  save_npy: true
+filepath:
+  GPU-Server:
+    knowair_fp: D:\Pythhon\ResearchProject\PM2.5_Forecasting_GNN-main\data\pm25gnn\data\dataset_fire_wind_aligned.npy
+    results_dir: D:\Pythhon\ResearchProject\PM2.5_Forecasting_GNN\results
+train:
+  batch_size: 4
+  early_stop: 10
+  epochs: 50
+  exp_repeat: 10
+  hist_len: 240
+  lr: 0.0005
+  pred_len: 48
+  weight_decay: 0.0005
