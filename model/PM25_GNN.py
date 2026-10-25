@@ -14,7 +14,7 @@ class GraphGNN(nn.Module):
         self.device = device
         self.edge_index = torch.LongTensor(edge_index).to(self.device)
         self.edge_attr = torch.Tensor(np.float32(edge_attr))
-        self.edge_attr_norm = (self.edge_attr - self.edge_attr.mean(dim=0)) / self.edge_attr.std(dim=0)
+        self.edge_attr_norm = (self.edge_attr - self.edge_attr.mean(dim=0)) / self.edge_attr.std(dim=0, unbiased=False).clamp_min(1e-8)
         self.w = Parameter(torch.rand([1]))
         self.b = Parameter(torch.rand([1]))
         self.wind_mean = torch.Tensor(np.float32(wind_mean)).to(self.device)
@@ -48,7 +48,7 @@ class GraphGNN(nn.Module):
         city_dist = self.edge_attr_[:,:,0]
         city_direc = self.edge_attr_[:,:,1]
 
-        theta = torch.abs(city_direc - src_wind_direc)
+        theta = (city_direc - src_wind_direc) * (np.pi / 180.0)
         edge_weight = F.relu(3 * src_wind_speed * torch.cos(theta) / city_dist)
         edge_weight = edge_weight.to(self.device)
         edge_attr_norm = self.edge_attr_norm[None, :, :].repeat(node_src.size(0), 1, 1).to(self.device)
@@ -86,8 +86,9 @@ class PM25_GNN(nn.Module):
         self.fc_out = nn.Linear(self.hid_dim, self.out_dim)
 
     def forward(self, pm25_hist, feature):
+        batch_size = pm25_hist.size(0)
         pm25_pred = []
-        h0 = torch.zeros(self.batch_size * self.city_num, self.hid_dim).to(self.device)
+        h0 = torch.zeros(batch_size * self.city_num, self.hid_dim).to(self.device)
         hn = h0
         xn = pm25_hist[:, -1]
         for i in range(self.pred_len):
@@ -99,7 +100,7 @@ class PM25_GNN(nn.Module):
             x = torch.cat([xn_gnn, x], dim=-1)
 
             hn = self.gru_cell(x, hn)
-            xn = hn.view(self.batch_size, self.city_num, self.hid_dim)
+            xn = hn.view(batch_size, self.city_num, self.hid_dim)
             xn = self.fc_out(xn)
             pm25_pred.append(xn)
 

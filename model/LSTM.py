@@ -19,17 +19,18 @@ class LSTM(nn.Module):
         self.lstm_cell = LSTMCell(self.hid_dim, self.hid_dim)
 
     def forward(self, pm25_hist, feature):
+        batch_size = pm25_hist.size(0)
         pm25_pred = []
-        h0 = torch.zeros(self.batch_size * self.city_num, self.hid_dim).to(self.device)
+        h0 = torch.zeros(batch_size * self.city_num, self.hid_dim).to(self.device)
         hn = h0
-        c0 = torch.zeros(self.batch_size * self.city_num, self.hid_dim).to(self.device)
+        c0 = torch.zeros(batch_size * self.city_num, self.hid_dim).to(self.device)
         cn = c0
         xn = pm25_hist[:, -1]
         for i in range(self.pred_len):
             x = torch.cat((xn, feature[:, self.hist_len+i]), dim=-1)
             x = self.fc_in(x)
             hn, cn = self.lstm_cell(x, (hn, cn))
-            xn = hn.view(self.batch_size, self.city_num, self.hid_dim)
+            xn = hn.view(batch_size, self.city_num, self.hid_dim)
             xn = self.fc_out(xn)
             pm25_pred.append(xn)
         pm25_pred = torch.stack(pm25_pred, dim=1)

@@ -22,8 +22,9 @@ class nodesFC_GRU(nn.Module):
                                    Sigmoid())
 
     def forward(self, pm25_hist, feature):
+        batch_size = pm25_hist.size(0)
         pm25_pred = []
-        h0 = torch.zeros(self.batch_size * self.city_num, self.hid_dim).to(self.device)
+        h0 = torch.zeros(batch_size * self.city_num, self.hid_dim).to(self.device)
         hn = h0
         xn = pm25_hist[:, -1]
         for i in range(self.pred_len):
@@ -31,13 +32,13 @@ class nodesFC_GRU(nn.Module):
             # nodes FC
             xn_gnn = x
             xn_gnn = xn_gnn.contiguous()
-            xn_gnn = xn_gnn.view(self.batch_size, -1)
+            xn_gnn = xn_gnn.view(batch_size, -1)
             xn_gnn = self.graph_mlp(xn_gnn)
-            xn_gnn = xn_gnn.view(self.batch_size, self.city_num, 1)
+            xn_gnn = xn_gnn.view(batch_size, self.city_num, 1)
             x = torch.cat([xn_gnn, x], dim=-1)
             # nodes FC
             hn = self.gru_cell(x, hn)
-            xn = hn.view(self.batch_size, self.city_num, self.hid_dim)
+            xn = hn.view(batch_size, self.city_num, self.hid_dim)
             xn = self.fc_out(xn)
             pm25_pred.append(xn)
 
