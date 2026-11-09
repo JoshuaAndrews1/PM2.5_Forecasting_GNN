@@ -1,7 +1,12 @@
+import sys
+from pathlib import Path
+
+# Keep source imports working from the test subdirectory.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import copy
 import json
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
 import numpy as np
 import torch
@@ -10,7 +15,7 @@ from model import FireSourceGNN
 
 
 def fixture():
-    config = json.loads(Path(__file__).with_name('config.json').read_text())
+    config = json.loads((Path(__file__).resolve().parents[1] / 'config.json').read_text())
     config.update(hidden_dim=8, message_dim=4, nlcd_embedding_dim=3, edge_chunk_size=2)
     stats = dict(monitor_mean=np.zeros(9), monitor_std=np.ones(9),
                  fire_mean=np.zeros(11), fire_std=np.ones(11), pm_mean=0., pm_std=1.,

@@ -37,6 +37,28 @@ class PreparedData:
     def starts(self, split, history, horizon):
         return np.arange(history, len(self.splits[split]['pm25'])-horizon+1, dtype=np.int64)
 
+    def forecast_edge_counts(self, split, horizon, lag):
+        """Count all lag-expanded edges for every valid rollout start.
+
+        The count includes lags 0..lag and every forecast hour. It is a
+        scheduling estimate, not a guarantee about peak CUDA allocation.
+        """
+        if horizon < 1 or lag < 0:
+            raise ValueError('Invalid horizon or lag')
+        cache = self.__dict__.setdefault('_forecast_edge_counts', {})
+        key = (split, horizon, lag)
+        if key not in cache:
+            item = self.splits[split]
+            degree = np.diff(self.graph['candidate_ptr'])
+            hourly = np.bincount(item['fire_hour'], weights=degree[item['fire_cell']],
+                                 minlength=len(item['pm25'])).astype(np.int64)
+            sums = np.r_[0, np.cumsum(hourly)]
+            hours = np.arange(len(hourly))
+            lagged = sums[hours+1]-sums[np.maximum(0, hours-lag)]
+            totals = np.r_[0, np.cumsum(lagged)]
+            cache[key] = totals[horizon:]-totals[:-horizon]
+        return cache[key]
+
     def close(self):
         """Release memory maps after a training invocation, including safe pauses."""
         for item in self.splits.values():

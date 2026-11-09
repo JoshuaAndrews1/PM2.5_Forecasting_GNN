@@ -64,7 +64,7 @@ are resolved against the checkout. `train_ambient.py` defaults to
 Run regression tests with the existing environment:
 
 ```powershell
-..\PM2.5_Forecasting_GNN-main\.venv37\Scripts\python.exe -B -m unittest test_regressions -v
+..\PM2.5_Forecasting_GNN-main\.venv37\Scripts\python.exe -B -m unittest discover -s test -p test_regressions.py -v
 ```
 
 ## Checkpoints and simulations

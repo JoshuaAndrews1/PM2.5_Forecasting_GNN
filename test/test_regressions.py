@@ -1,8 +1,13 @@
+import sys
+from pathlib import Path
+
+# Keep source imports working from the test subdirectory.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import copy
 import importlib
 import tempfile
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 

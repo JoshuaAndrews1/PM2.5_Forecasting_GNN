@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from data import PreparedData
 from model import FireSourceGNN
+from batching import BatchMemoryError, ConcurrentTrainer, validate_batching_config
 
 
 def save_json(path, value):
@@ -120,8 +121,17 @@ def run(args):
         data.close()
 
 
+def load_run_config(args):
+    if args.config is not None:
+        return json.loads(args.config.read_text())
+    if getattr(args, 'resume', False):
+        return load_checkpoint(args.output/'last.pt')['config']
+    return json.loads(Path(__file__).with_name('config.weather-cyclical.json').read_text())
+
+
 def _run(args, data):
-    config = json.loads(args.config.read_text())
+    config = load_run_config(args)
+    validate_batching_config(config)
     if args.epochs is not None:
         config['epochs'] = args.epochs
     if config['epochs'] < 1 or config['batch_size'] < 1:
@@ -156,7 +166,15 @@ def _run(args, data):
                           verification_only=bool(args.limit_windows),
                           selected_windows={k: len(v) for k, v in starts.items()},
                           history_encoder='GRU over all observed PM/weather/calendar history',
-                          future_pm_policy='autoregressive; no future truth passed to model', resume_format_version=2)
+                          future_pm_policy='autoregressive; no future truth passed to model', resume_format_version=2,
+                          time_encoding=model.time_encoding,
+                          time_features=(['utc_hour_sin', 'utc_hour_cos', 'year_phase_sin', 'year_phase_cos']
+                                         if model.time_encoding == 'cyclical' else ['midnight_unix_seconds', 'utc_hour']),
+                          weather_cache_mb=config.get('weather_cache_mb', 0),
+                          cache_weather_features=config.get('cache_weather_features', False),
+                          concurrent_windows=config.get('concurrent_windows', 1),
+                          max_batch_edges=config.get('max_batch_edges', 0),
+                          batching='Disjoint monitor graphs and packed fire edges; sequential forecast hours')
         save_json(args.output/'run.json', provenance)
         state = dict(stage='training', epoch=1, order=np.random.permutation(starts['training']),
                      train_next=0, training_total=0., epoch_seconds=0.,
@@ -175,6 +193,9 @@ def _run(args, data):
             state['epoch'], state['stage'], state['train_next'], len(state['order']),
             state['evaluation']['next']), flush=True)
 
+    concurrent = ConcurrentTrainer(model, config, state)
+    edge_counts = (data.forecast_edge_counts('training', config['forecast_hours'], config['max_lag_hours'])
+                   if config.get('max_batch_edges', 0) else None)
     last_saved = last_tick = time.monotonic()
     with RunControl(max_seconds) as control:
         def checkpoint(force=False):
@@ -189,7 +210,7 @@ def _run(args, data):
                 save_json(args.output/'progress.json', dict(stage=state['stage'], epoch=state['epoch'],
                     training_windows_completed=state['train_next'], training_windows_total=len(state['order']),
                     evaluation_windows_completed=state['evaluation']['next'], paused=bool(stopping),
-                    checkpoint='last.pt', batch_size=config['batch_size']))
+                    checkpoint='last.pt', batch_size=config['batch_size'], batching_runtime=dict(concurrent.runtime)))
             return stopping
 
         def pause():
@@ -211,16 +232,15 @@ def _run(args, data):
                     batch_end = min(first+config['batch_size'], len(order))
                     if position == first:
                         optimizer.zero_grad(set_to_none=True)
-                    start = int(order[position])
-                    prediction = model(data, 'training', start)
-                    truth = model.tensor(data.splits['training']['pm25'][start:start+len(prediction)])
-                    truth = (truth-model.pm_mean)/model.pm_std
-                    loss = torch.nn.functional.mse_loss(prediction, truth)
-                    if not torch.isfinite(loss):
-                        raise ValueError('Nonfinite loss')
-                    (loss/(batch_end-first)).backward()
-                    state['training_total'] += float(loss.detach())
-                    state['train_next'] += 1
+                    try:
+                        count, loss_total = concurrent.accumulate(
+                            data, 'training', order, position, batch_end, batch_end-first, edge_counts)
+                    except BatchMemoryError:
+                        # Failed group was rolled back; prior accumulation is safe.
+                        checkpoint(force=True)
+                        raise
+                    state['training_total'] += loss_total
+                    state['train_next'] += count
                     boundary = state['train_next'] == batch_end
                     if boundary:
                         for p in model.parameters():
@@ -229,8 +249,8 @@ def _run(args, data):
                         torch.nn.utils.clip_grad_norm_(model.parameters(), config['gradient_clip'])
                         optimizer.step(); optimizer.zero_grad(set_to_none=True)
                         print('epoch {} windows {}/{} loss {:.6g}'.format(
-                            state['epoch'], state['train_next'], len(order), float(loss)), flush=True)
-                    # Partial-batch gradients preserve batch size 32 across jobs.
+                            state['epoch'], state['train_next'], len(order), loss_total/count), flush=True)
+                    # Save complete concurrent groups, including partial effective batches.
                     if checkpoint(force=boundary):
                         return pause()
                 state['stage'] = 'validation'
@@ -285,7 +305,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cache', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--config', type=Path, default=Path(__file__).with_name('config.json'))
+    parser.add_argument('--config', type=Path, help='Fresh default: concurrent/weather/cyclical config; resume default: saved config')
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--epochs', type=int)
     parser.add_argument('--limit-windows', type=int, default=0, help='Verification only; 0 means ALL windows')

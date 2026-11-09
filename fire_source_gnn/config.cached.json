@@ -1,0 +1,18 @@
+{
+  "max_lag_hours": 24,
+  "fire_cutoff_km": 300.0,
+  "history_hours": 240,
+  "forecast_hours": 48,
+  "hidden_dim": 32,
+  "message_dim": 16,
+  "nlcd_embedding_dim": 8,
+  "edge_chunk_size": 8192,
+  "batch_size": 1,
+  "epochs": 15,
+  "patience": 3,
+  "learning_rate": 0.0005,
+  "weight_decay": 0.0005,
+  "gradient_clip": 5.0,
+  "seed": 42,
+  "fire_input_cache_mb": 512
+}

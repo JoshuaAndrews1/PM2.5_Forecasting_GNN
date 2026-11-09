@@ -1,11 +1,16 @@
 """Compare interrupted/resumed runs with uninterrupted training, including gradients."""
+import sys
+from pathlib import Path
+
+# Keep source imports working from the test subdirectory.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import argparse
 import copy
 import json
 import signal
 import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import patch
 import numpy as np
 import torch
